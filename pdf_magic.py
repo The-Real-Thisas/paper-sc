@@ -1,39 +1,34 @@
-import subprocess
 import pdfplumber
 
-class PdfPage:
-    def __init__(self, pdf_path, page_number):
-        self.pdf_path = pdf_path
-        self.page_number = page_number
+def extract_left_margin_words(pdf_path):
+    with pdfplumber.open(pdf_path) as pdf:
+        left_margin_words = []
+        
+        for page_number, page in enumerate(pdf.pages, 1):
+            page_words = page.extract_words()
+            
+            min_x = min(word['x0'] for word in page_words)
+            
+            threshold = 1.0
+            
+            for line_number, word in enumerate(page_words, 1):
+                if word['x0'] <= min_x + threshold:
+                    left_margin_words.append({
+                        'word': word['text'],
+                        'line_number': line_number,
+                        'page_number': page_number
+                    })
+                    
+        return left_margin_words
 
-    def extract_text(self):
-        with pdfplumber.open(self.pdf_path) as pdf:
-            page = pdf.pages[self.page_number - 1]
-            return page.extract_text()
+# Usage example
+pdf_path = 'demo.pdf'
+left_margin_words = extract_left_margin_words(pdf_path)
 
-    def extract_rectangles(self):
-        with pdfplumber.open(self.pdf_path) as pdf:
-            page = pdf.pages[self.page_number - 1]
-            return page.rects
-
-    def extract_svg(self, output_path):
-        subprocess.run(['pdf2svg', self.pdf_path, output_path, str(self.page_number)])
-
-# Example usage
-pdf_path = "demo.pdf"
-page_number = 3
-
-pdf_page = PdfPage(pdf_path, page_number)
-
-text_content = pdf_page.extract_text()
-print("Text Content:")
-print(text_content)
-
-rectangles = pdf_page.extract_rectangles()
-print("Rectangles:")
-for rect in rectangles:
-    print(rect)
-
-output_svg_path = "output.svg"
-pdf_page.extract_svg(output_svg_path)
-print(f"SVG saved to {output_svg_path}")
+# Print the extracted numeric words with line number and page number
+for word_info in left_margin_words:
+    word = word_info['word']
+    if word.isdigit():
+        line_number = word_info['line_number']
+        page_number = word_info['page_number']
+        print(f"Word: {word}, Line: {line_number}, Page: {page_number}")
